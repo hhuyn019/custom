@@ -8,6 +8,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdio.h>
+#include <stdlib.h>
 #define input (~PINA & 0xFF)
 
 #define SET_BIT(p,i) ((p) |= (1 << (i)))
@@ -202,97 +203,40 @@ ISR(TIMER1_COMPA_vect)
 	}
 }
 
-void Tick() {
-	if(input == 0x01) {
-		LCD_DisplayString(1, "1");
-	}
-	if(input == 0x02) {
-		LCD_DisplayString(1, "2");
-	}
-	if(input == 0x03) {
-		LCD_DisplayString(1, "3");
-	}
-	if(input == 0x04) {
-		LCD_DisplayString(1, "4");
-	}
-	if(input == 0x05) {
-		LCD_DisplayString(1, "5");
-	}
-	if(input == 0x06) {
-		LCD_DisplayString(1, "6");
-	}
-	if(input == 0x07) {
-		LCD_DisplayString(1, "7");
-	}
-	if(input == 0x08) {
-		LCD_DisplayString(1, "8");
-	}
-	if(input == 0x09) {
-		LCD_DisplayString(1, "9");
-	}
-	if(input == 0x0A) {
-		LCD_DisplayString(1, "A");
-	}
-	if(input == 0x0B) {
-		LCD_DisplayString(1, "B");
-	}
-	if(input == 0x0C) {
-		LCD_DisplayString(1, "C");
-	}
-	if(input == 0x0D) {
-		LCD_DisplayString(1, "D");
-	}
-	if(input == 0x0E) {
-		LCD_DisplayString(1, "E");
-	}
-	if(input == 0x0F) {
-		LCD_DisplayString(1, "F");
-	}
-	if(input == 0x10) {
-		LCD_DisplayString(1, "G");
-	}
-	if(input == 0x20) {
-		LCD_DisplayString(1, "H");
-	}
-	if(input == 0x30) {
-		LCD_DisplayString(1, "I");
-	}
-	if(input == 0x40) {
-		LCD_DisplayString(1, "J");
-	}
-	if(input == 0x50) {
-		LCD_DisplayString(1, "K");
-	}
-	if(input == 0x60) {
-		LCD_DisplayString(1, "L");
-	}
-	if(input == 0x70) {
-		LCD_DisplayString(1, "M");
-	}
-	if(input == 0x80) {
-		LCD_DisplayString(1, "N");
-	}
-	if(input == 0x90) {
-		LCD_DisplayString(1, "O");
-	}
-	if(input == 0xA0) {
-		LCD_DisplayString(1, "P");
-	}
-	if(input == 0xB0) {
-		LCD_DisplayString(1, "Q");
-	}
-	if(input == 0xC0) {
-		LCD_DisplayString(1, "R");
-	}
-	if(input == 0xD0) {
-		LCD_DisplayString(1, "S");
-	}
-	if(input == 0xE0) {
-		LCD_DisplayString(1, "T");
-	}
-	if(input == 0xF0) {
-		LCD_DisplayString(1, "U");
-	}
+void testDisplayJoystickADC(){
+	//I know this code is ugly, its really just a test bench to see 
+	//what the X and Y ranges from the joystick and the logic value 
+	//from its click.
+	
+	//display X
+	unsigned short tmpADC = currentJoystickFramePtr->raw_x;
+	LCD_msg[3] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[2] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[1] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[0] = (tmpADC % 10)+ '0';
+	LCD_msg[4] = ' ';
+	
+	//display Y
+	tmpADC = currentJoystickFramePtr->raw_y;
+	LCD_msg[8] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[7] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[6] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[5] = (tmpADC % 10)+ '0';
+	LCD_msg[9] = ' ';
+	
+	//display click
+	LCD_msg[10] = currentJoystickFramePtr->click ? '1' :  '0';
+	LCD_msg[11] = '\0';
+	
+	//Write to LCD
+	LCD_DisplayString(1, &LCD_msg);
+
 }
 
 int main(void)
@@ -301,14 +245,14 @@ int main(void)
 	DDRB = 0xFF; PORTB = 0x00;
 	DDRC = 0xFF; PORTC = 0x00;
 	DDRD = 0xFF; PORTD = 0x00;
+	ADC_init();
+	LCD_init();
 	TimerSet(100);
 	TimerOn();
-	LCD_init();
 	
     while (1) {
-		Tick();
-		//LCD_Cursor(1);
-		//LCD_WriteData('6');
+		Joystick_Tick();
+	    	testDisplayJoystickADC();
 		while (!TimerFlag);
 		TimerFlag = 0;
 	}
