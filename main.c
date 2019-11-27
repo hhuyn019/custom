@@ -31,6 +31,34 @@ typedef enum Direction{NONE, LEFT, RIGHT, UP, DOWN} Direction;
 #define JOYSTICK_LIMIT_UP 100
 #define JOYSTICK_LIMIT_DOWN 1000
 
+char LCD_msg[33];
+unsigned short myADC = 0x0000;
+unsigned char tmpA = 0x00;
+unsigned char tmpB = 0x00;
+unsigned char tmpC = 0x00;
+unsigned char tmpD = 0x00;
+
+void ADC_init() {
+	ADCSRA |= (1 << ADEN) | (1 << ADSC);
+}
+
+void ADC_channel(unsigned char channel){
+	if(channel < 8 && channel >= 0){
+		//CLEAR ADMUX2:0
+		ADMUX &= 0xF8;
+		//Set ADMUX
+		ADMUX |= (channel & 0x07);
+	}
+}
+
+unsigned short ADC_read(unsigned char channel){
+	unsigned short myADC = 0x0000;
+	ADC_channel(channel);
+	ADCSRA |= (1 << ADSC);
+	while(ADCSRA & (1 << ADSC));
+	myADC = ADC;
+	return myADC;
+}
 
 typedef struct Joystick_Frame {
 	
@@ -43,6 +71,8 @@ typedef struct Joystick_Frame {
 	Direction Y_direction;
 } Joystick_Frame;
 
+Joystick_Frame* currentJoystickFramePtr;
+Joystick_Frame* nextJoystickFramePtr;
 
 void Joystick_Process_Raw(Joystick_Frame* frame);
 void Joystick_Read(Joystick_Frame* frame);
@@ -239,6 +269,40 @@ void testDisplayJoystickADC(){
 
 }
 
+void Joystick_Tick(){
+	//READ + POPULATE always into the next frame before swapping buffer
+	Joystick_Read(nextJoystickFramePtr);
+	Joystick_Process_Raw(nextJoystickFramePtr);
+	//COPY POINTER BEFORE SWAPPING
+	Joystick_Frame* temp = currentJoystickFramePtr;
+	//SWAP BUFFER
+	currentJoystickFramePtr = nextJoystickFramePtr;
+	nextJoystickFramePtr = temp;
+}
+
+
+Joystick_Frame* currentJoystickFramePtr1;
+Joystick_Frame* nextJoystickFramePtr1;
+void Joystick_Tick1(){
+	//READ + POPULATE always into the next frame before swapping buffer
+	Joystick_Read(nextJoystickFramePtr1);
+	Joystick_Process_Raw(nextJoystickFramePtr1);
+	//COPY POINTER BEFORE SWAPPING
+	Joystick_Frame* temp1 = currentJoystickFramePtr1;
+	//SWAP BUFFER
+	currentJoystickFramePtr1 = nextJoystickFramePtr1;
+	nextJoystickFramePtr1 = temp1;
+}
+testtt() {
+	if(currentJoystickFramePtr1->raw_x < 1000) {
+		LCD_DisplayString(1, "RIGHT");
+	} else if ((currentJoystickFramePtr1->raw_x < 1000) && (currentJoystickFramePtr1->raw_y < 1000)){
+	LCD_DisplayString(1, "UP-RIGHT");
+	} else if ((currentJoystickFramePtr1->raw_x < 1000) && (currentJoystickFramePtr1->raw_y < 1000)){
+	LCD_DisplayString(1, "UP-RIGHT");
+	}
+}
+
 int main(void)
 {
 	DDRA = 0x00; PORTA = 0xFF;
@@ -247,12 +311,15 @@ int main(void)
 	DDRD = 0xFF; PORTD = 0x00;
 	ADC_init();
 	LCD_init();
+	currentJoystickFramePtr = (Joystick_Frame*) malloc(sizeof(Joystick_Frame));
+	nextJoystickFramePtr = (Joystick_Frame*) malloc(sizeof(Joystick_Frame));
 	TimerSet(100);
 	TimerOn();
 	
     while (1) {
 		Joystick_Tick();
-	    	testDisplayJoystickADC();
+	    testDisplayJoystickADC();
+		//testtt();
 		while (!TimerFlag);
 		TimerFlag = 0;
 	}
