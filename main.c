@@ -9,6 +9,7 @@
 #include <avr/interrupt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <util/delay.h>
 #define input (~PINA & 0xFF)
 
 #define SET_BIT(p,i) ((p) |= (1 << (i)))
@@ -30,6 +31,268 @@ typedef enum Direction{NONE, LEFT, RIGHT, UP, DOWN} Direction;
 #define JOYSTICK_LIMIT_RIGHT 1000
 #define JOYSTICK_LIMIT_UP 100
 #define JOYSTICK_LIMIT_DOWN 1000
+
+#define DDR_SPI DDRB
+#define MOSI 5
+#define SCK 7
+#define CSN 2
+#define SPI_PORT PORTB
+#define CE 4
+
+void spi_init(void)
+{
+	/* Set MOSI, SCK, CSN, and CE as output, all others as input */
+	DDR_SPI = ( 1 << MOSI ) | ( 1 << SCK ) | ( 1 << CSN ) | ( 1 << CE );
+	/* Enable SPI, set clock rate fck/16 */
+	SPCR = ( 1 << SPE ) | ( 1 << MSTR ) | ( 1 << SPR0 );
+}
+
+uint8_t spi_transfer(uint8_t data)
+{
+	/* Start transmission */
+	SPDR = data;
+	/* Wait for transmission complete */
+	while( !( SPSR & ( 1 << SPIF )));
+
+	return SPDR;
+}
+
+#define LCD_PORT 	PORTB
+#define LCD_DDR 	DDRB
+#define LCD_DC 		PB1
+#define LCD_RST 	PB0
+#define LCD_CE 		PB4
+
+// User-Defined SPI Settings (configure these macros to use your SPI library and functions)
+
+#define SPI_INIT() 		spi_init()
+#define SPI_WRITE(x) 	spi_transfer(x) // Expected to accept and return a byte
+
+// =========================================================================================
+
+#define LCD_DATA 	1
+#define LCD_CMD 	0
+#define LCD_HEIGHT 	48
+#define LCD_WIDTH 	84
+#define BLACK 		1
+#define WHITE 		0
+
+extern uint8_t buffer[504];
+
+void lcd_init( void );
+
+void lcd_send( uint8_t dataOrCmd, uint8_t byte );
+
+void lcd_gotoXY( uint8_t x, uint8_t y);
+
+void lcd_update( void );
+
+void lcd_clear( void );
+
+void lcd_clearBuffer( void );
+
+void lcd_contrast(uint8_t contrast);
+
+void lcd_putPixel(uint8_t x, uint8_t y, uint8_t bw);
+
+int divideRoundUp(int num, int divisor);
+
+void lcd_drawImage( uint8_t* image, uint8_t x, uint8_t y );
+
+void lcd_drawLine( uint8_t xLeft, uint8_t yLow, uint8_t xRight, uint8_t yHigh, uint8_t bw );
+
+void lcd_fillRect( uint8_t xLeft, uint8_t yLow, uint8_t xRight, uint8_t yHigh, uint8_t bw );
+
+void lcd_drawRect( uint8_t xLeft, uint8_t yLow, uint8_t xRight, uint8_t yHigh, uint8_t bw );
+
+void spi_init(void);
+uint8_t spi_transfer(uint8_t data);
+
+uint8_t buffer[504];
+
+void lcd_init( void )
+{
+	// Set outputs
+	LCD_DDR |= (1 << LCD_DC) | (1 << LCD_RST) | (1 << LCD_CE);
+
+	// Required Reset
+	LCD_PORT &= ~(1 << LCD_RST);
+	LCD_PORT |= (1 << LCD_RST);
+
+	// Configure LCD (Refer to datasheet to alter settings)
+	lcd_send( LCD_CMD, 0x21 );
+	lcd_send( LCD_CMD, 0xB0 );
+	lcd_send( LCD_CMD, 0x04 );
+	lcd_send( LCD_CMD, 0x14 );
+	lcd_send( LCD_CMD, 0x20 );
+	lcd_send( LCD_CMD, 0x0C );
+
+	lcd_contrast(55);
+}
+
+void lcd_send( uint8_t dataOrCmd, uint8_t byte )
+{
+	if ( dataOrCmd ) LCD_PORT |= (1 << LCD_DC);
+	else LCD_PORT &= ~(1 << LCD_DC);
+
+	LCD_PORT &= ~(1 << LCD_CE);
+	SPI_WRITE( byte );
+	LCD_PORT |= (1 << LCD_CE);
+}
+
+void lcd_gotoXY( uint8_t x, uint8_t y)
+{
+	lcd_send(0, 0x80 | x);
+	lcd_send(0, 0x40 | y);
+}
+
+void lcd_update( void )
+{
+	lcd_gotoXY(0, 0);
+
+	for (int i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
+	{
+		lcd_send(LCD_DATA, buffer[i]);
+	}
+}
+
+void lcd_clear( void )
+{
+	lcd_gotoXY(0, 0);
+	for (int i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
+	{
+		lcd_send(LCD_DATA, 0x00);
+	}
+}
+
+void lcd_clearBuffer( void )
+{
+	for (int i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
+	{
+		buffer[i] = 0;
+	}
+}
+
+void lcd_contrast(uint8_t contrast)
+{
+	lcd_send(LCD_CMD, 0x21);
+	lcd_send(LCD_CMD, 0x80 | contrast);
+	lcd_send(LCD_CMD, 0x20);
+}
+
+void lcd_putPixel(uint8_t x, uint8_t y, uint8_t bw)
+{
+	// Make sure coordinate is within bounds
+	if ((x >= 0) && (x < LCD_WIDTH) && (y >= 0) && (y < LCD_HEIGHT))
+	{
+		uint8_t shift = y % 8;
+		
+		if (bw) // If black, set the bit.
+		buffer[x + (y/8)*LCD_WIDTH] |= 1<<shift;
+		else   // If white clear the bit.
+		buffer[x + (y/8)*LCD_WIDTH] &= ~(1<<shift);
+	}
+}
+
+int divideRoundUp(int num, int divisor)
+{
+	int i, quotient;
+	for(i = num, quotient = 0; i > 0; i -= divisor, quotient++);
+	return quotient;
+}
+
+void lcd_drawImage( uint8_t* image, uint8_t x, uint8_t y )
+{
+	int row, bit, byteColumn, lineSize, height, width;
+	
+	height = image[0];
+	width = image[1];
+	lineSize = divideRoundUp( width, 8 );
+	
+	for ( row = height - 1; row >= 0; row-- )
+	{
+		for ( byteColumn = 0; byteColumn < lineSize; byteColumn++ )
+		{
+			for ( bit = 7; bit >= 0; bit--)
+			{
+				if ( (image[row*lineSize + byteColumn + 2] & (1 << bit) ) )
+				lcd_putPixel( x + (byteColumn * 8) + ( 7 - bit ), y + height - row, BLACK );
+			}
+		}
+	}
+}
+
+void lcd_drawLine( uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t bw )
+{
+	#define sign(x) ((x) > 0 ? 1: ((x) == 0 ? 0: (-1)))
+
+	int dx, dy, dxabs, dyabs, i, px, py, sdx, sdy, x, y;
+
+	dx = x2 - x1;
+	dy = y2 - y1;
+	sdx = sign( dx );
+	sdy = sign( dy );
+	dxabs = ( dx > 0 ) ? dx : -dx;
+	dyabs = ( dy > 0 ) ? dy : -dy;
+	x = 0;
+	y = 0;
+	px = x1;
+	py = y1;
+
+	if ( dxabs >= dyabs )
+	{
+		for ( i = 0; i <= dxabs; i++ )
+		{
+			y += dyabs;
+			if ( y >= dxabs )
+			{
+				y -= dxabs;
+				py += sdy;
+			}
+			lcd_putPixel( px, py, bw );
+			px += sdx;
+		}
+	}
+	else
+	{
+		for ( i = 0; i <= dyabs; i++ )
+		{
+			x += dxabs;
+			if ( x >= dyabs )
+			{
+				x -= dyabs;
+				px += sdx;
+			}
+			lcd_putPixel( px, py, bw );
+			py += sdy;
+		}
+	}
+}
+
+void lcd_fillRect( uint8_t xLeft, uint8_t yLow, uint8_t xRight, uint8_t yHigh, uint8_t bw )
+{
+	for ( int i = yLow; i < yHigh + 1; i++ )
+	{
+		for ( int k = xLeft; k < xRight + 1; k++ )
+		lcd_putPixel( k, i, bw );
+	}
+}
+
+void lcd_drawRect( uint8_t xLeft, uint8_t yLow, uint8_t xRight, uint8_t yHigh, uint8_t bw )
+{
+	// Lower line
+	lcd_drawLine( xLeft, yLow, xRight, yLow, bw );
+	
+	// Upper line
+	lcd_drawLine( xLeft, yHigh, xRight, yHigh, bw );
+
+	// Sinelines
+	for ( int i = yLow + 1; i < yHigh; i++ )
+	{
+		lcd_putPixel( xLeft, i, bw );
+		lcd_putPixel( xRight, i, bw );
+	}
+}
 
 char LCD_msg[33];
 unsigned short myADC = 0x0000;
@@ -60,7 +323,7 @@ unsigned short ADC_read(unsigned char channel){
 	return myADC;
 }
 
-typedef struct Joystick_Frame {
+typedef struct Joystick_Frame { // Code for joystick functionality given by fellow UCR classmate, Padraic Reilly
 	
 	unsigned short raw_x;
 	unsigned short raw_y;
@@ -78,7 +341,7 @@ void Joystick_Process_Raw(Joystick_Frame* frame);
 void Joystick_Read(Joystick_Frame* frame);
 void Joystick_Tick();
 
-void Joystick_Process_Raw(Joystick_Frame* frame){
+void Joystick_Process_Raw(Joystick_Frame* frame){ // Code for joystick functionality given by fellow UCR classmate, Padraic Reilly
 	
 	//Set X
 	if(frame->raw_x < JOYSTICK_LIMIT_LEFT){frame->X_direction = LEFT;}
@@ -96,7 +359,7 @@ void Joystick_Process_Raw(Joystick_Frame* frame){
 	} 
 }
 
-void Joystick_Read(Joystick_Frame* frame){
+void Joystick_Read(Joystick_Frame* frame){ // Code for joystick functionality given by fellow UCR classmate, Padraic Reilly
 	
 	//We will read the Vx and Vy from the 2-potentiometer Joystick;
 	
@@ -233,10 +496,7 @@ ISR(TIMER1_COMPA_vect)
 	}
 }
 
-void testDisplayJoystickADC(){
-	//I know this code is ugly, its really just a test bench to see 
-	//what the X and Y ranges from the joystick and the logic value 
-	//from its click.
+void testDisplayJoystickADC(){ // Code for joystick functionality given by fellow UCR classmate, Padraic Reilly
 	
 	//display X
 	unsigned short tmpADC = currentJoystickFramePtr->raw_x;
@@ -303,6 +563,20 @@ testtt() {
 	}
 }
 
+uint8_t testImg[] = { 19, 42,
+	0x01, 0x10, 0x00, 0x00, 0x00, 0x00, 0x01, 0x98, 0x90, 0x50,
+	0x00, 0x00, 0x01, 0xdc, 0xd8, 0xf8, 0x71, 0xc0, 0x07, 0xfe,
+	0xfc, 0xf8, 0xe7, 0x80, 0x0c, 0x3f, 0xff, 0xff, 0xbf, 0x00,
+	0x18, 0x0f, 0xe3, 0x9d, 0xce, 0x00, 0x30, 0x03, 0xf1, 0xcc,
+	0xdc, 0x00, 0x70, 0x40, 0xf8, 0xc6, 0x78, 0x00, 0x64, 0x78,
+	0x38, 0xe7, 0xf0, 0x00, 0xec, 0x7e, 0x18, 0x7f, 0xc0, 0x00,
+	0xcc, 0x3e, 0x1c, 0xf8, 0x00, 0x00, 0xde, 0x3e, 0x1f, 0xc0,
+	0x00, 0x00, 0xda, 0x16, 0x1f, 0x00, 0x00, 0x00, 0xce, 0x1e,
+	0x18, 0x00, 0x00, 0x00, 0xce, 0x00, 0x38, 0x00, 0x00, 0x00,
+	0xe0, 0x01, 0xf0, 0x00, 0x00, 0x00, 0x78, 0x3f, 0xc0, 0x00,
+	0x00, 0x00, 0x3f, 0xff, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xe0,
+0x00, 0x00, 0x00, 0x00, };
+
 int main(void)
 {
 	DDRA = 0x00; PORTA = 0xFF;
@@ -311,15 +585,22 @@ int main(void)
 	DDRD = 0xFF; PORTD = 0x00;
 	ADC_init();
 	LCD_init();
+	SPI_INIT();
+	lcd_init();
 	currentJoystickFramePtr = (Joystick_Frame*) malloc(sizeof(Joystick_Frame));
 	nextJoystickFramePtr = (Joystick_Frame*) malloc(sizeof(Joystick_Frame));
 	TimerSet(100);
 	TimerOn();
 	
+	lcd_clearBuffer();
+	lcd_drawImage( testImg, 0, 0 );
+	lcd_drawLine( 5, 30, 80, 30, BLACK );
+	lcd_drawRect( 50, 0, 80, 40, BLACK );
+	lcd_update();
+	
     while (1) {
 		Joystick_Tick();
 	    testDisplayJoystickADC();
-		//testtt();
 		while (!TimerFlag);
 		TimerFlag = 0;
 	}
