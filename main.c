@@ -496,39 +496,6 @@ ISR(TIMER1_COMPA_vect)
 	}
 }
 
-void testDisplayJoystickADC(){ // Code for joystick functionality given by fellow UCR classmate, Padraic Reilly
-	
-	//display X
-	unsigned short tmpADC = currentJoystickFramePtr->raw_x;
-	LCD_msg[3] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[2] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[1] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[0] = (tmpADC % 10) + '0';
-	LCD_msg[4] = ' ';
-	
-	//display Y
-	tmpADC = currentJoystickFramePtr->raw_y;
-	LCD_msg[8] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[7] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[6] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[5] = (tmpADC % 10)+ '0';
-	LCD_msg[9] = ' ';
-	
-	//display click
-	LCD_msg[10] = currentJoystickFramePtr->click ? '1' :  '0';
-	LCD_msg[11] = '\0';
-	
-	//Write to LCD
-	LCD_DisplayString(1, &LCD_msg);
-
-}
-
 void Joystick_Tick(){
 	//READ + POPULATE always into the next frame before swapping buffer
 	Joystick_Read(nextJoystickFramePtr);
@@ -540,64 +507,6 @@ void Joystick_Tick(){
 	nextJoystickFramePtr = temp;
 }
 
-
-Joystick_Frame* currentJoystickFramePtr1;
-Joystick_Frame* nextJoystickFramePtr1;
-void Joystick_Tick1(){
-	//READ + POPULATE always into the next frame before swapping buffer
-	Joystick_Read(nextJoystickFramePtr1);
-	Joystick_Process_Raw(nextJoystickFramePtr1);
-	//COPY POINTER BEFORE SWAPPING
-	Joystick_Frame* temp1 = currentJoystickFramePtr1;
-	//SWAP BUFFER
-	currentJoystickFramePtr1 = nextJoystickFramePtr1;
-	nextJoystickFramePtr1 = temp1;
-}
-testtt() {
-	unsigned short tmpADC = currentJoystickFramePtr->raw_x;
-	LCD_msg[3] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[2] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[1] = (tmpADC % 10) + '0';
-	tmpADC /= 10;
-	LCD_msg[0] = (tmpADC % 10) + '0';
-	LCD_msg[4] = ' ';
-	
-	if(LCD_msg[0] == '1') {
-		//lcd_clearBuffer();
-		lcd_fillRect(1,41,28,47, BLACK);
-		lcd_fillRect(57,41,83,47, WHITE);
-		lcd_fillRect(29,41,56,47, WHITE);
-		lcd_update();
-	} else if (LCD_msg[1] == '0') {
-		//lcd_clearBuffer();
-		lcd_fillRect(57,41,83,47, BLACK);
-		lcd_fillRect(1,41,28,47, WHITE);
-		lcd_fillRect(29,41,56,47, WHITE);
-		lcd_update();
-	} else {
-		//lcd_clearBuffer();
-		lcd_fillRect(29,41,56,47, BLACK);
-		lcd_fillRect(1,41,28,47, WHITE);
-		lcd_fillRect(57,41,83,47, WHITE);
-		lcd_update();
-	}
-}
-
-uint8_t testImg[] = { 19, 42,
-	0x01, 0x10, 0x00, 0x00, 0x00, 0x00, 0x01, 0x98, 0x90, 0x50,
-	0x00, 0x00, 0x01, 0xdc, 0xd8, 0xf8, 0x71, 0xc0, 0x07, 0xfe,
-	0xfc, 0xf8, 0xe7, 0x80, 0x0c, 0x3f, 0xff, 0xff, 0xbf, 0x00,
-	0x18, 0x0f, 0xe3, 0x9d, 0xce, 0x00, 0x30, 0x03, 0xf1, 0xcc,
-	0xdc, 0x00, 0x70, 0x40, 0xf8, 0xc6, 0x78, 0x00, 0x64, 0x78,
-	0x38, 0xe7, 0xf0, 0x00, 0xec, 0x7e, 0x18, 0x7f, 0xc0, 0x00,
-	0xcc, 0x3e, 0x1c, 0xf8, 0x00, 0x00, 0xde, 0x3e, 0x1f, 0xc0,
-	0x00, 0x00, 0xda, 0x16, 0x1f, 0x00, 0x00, 0x00, 0xce, 0x1e,
-	0x18, 0x00, 0x00, 0x00, 0xce, 0x00, 0x38, 0x00, 0x00, 0x00,
-	0xe0, 0x01, 0xf0, 0x00, 0x00, 0x00, 0x78, 0x3f, 0xc0, 0x00,
-	0x00, 0x00, 0x3f, 0xff, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xe0,
-0x00, 0x00, 0x00, 0x00, };
 unsigned char timeLeft = 0x00;
 unsigned char g = 0x00;
 unsigned char score = 0x00;
@@ -885,20 +794,10 @@ int main(void)
 	nextJoystickFramePtr = (Joystick_Frame*) malloc(sizeof(Joystick_Frame));
 	TimerSet(100);
 	TimerOn();
-	//lcd_clearBuffer();
-	//lcd_drawImage( testImg, 0, 0 );
-	//lcd_drawRect( 50, 0, 80, 40, BLACK );
-	//lcd_drawRect(1, yHigh, 6, yLow, BLACK);
-	//lcd_update();
 	
     while (1) {
-		//lcd_clearBuffer();
-		//lcd_drawRect(38,41,46,47, BLACK);
-		//lcd_update();
 		Menu();
 		Joystick_Tick();
-	    //testDisplayJoystickADC();
-		//testtt();
 		Apples();
 		countScore();
 		while (!TimerFlag);
