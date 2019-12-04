@@ -149,8 +149,8 @@ void lcd_gotoXY( uint8_t x, uint8_t y)
 void lcd_update( void )
 {
 	lcd_gotoXY(0, 0);
-
-	for (int i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
+	int i = 0;
+	for (i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
 	{
 		lcd_send(LCD_DATA, buffer[i]);
 	}
@@ -159,7 +159,8 @@ void lcd_update( void )
 void lcd_clear( void )
 {
 	lcd_gotoXY(0, 0);
-	for (int i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
+	int i = 0;
+	for (i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
 	{
 		lcd_send(LCD_DATA, 0x00);
 	}
@@ -167,7 +168,8 @@ void lcd_clear( void )
 
 void lcd_clearBuffer( void )
 {
-	for (int i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
+	int i = 0;
+	for (i=0; i < (LCD_HEIGHT * LCD_WIDTH / 8); i++)
 	{
 		buffer[i] = 0;
 	}
@@ -271,9 +273,11 @@ void lcd_drawLine( uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t bw )
 
 void lcd_fillRect( uint8_t xLeft, uint8_t yLow, uint8_t xRight, uint8_t yHigh, uint8_t bw )
 {
-	for ( int i = yLow; i < yHigh + 1; i++ )
+	int i = yLow;
+	int k = xLeft;
+	for (i = yLow; i < yHigh + 1; i++ )
 	{
-		for ( int k = xLeft; k < xRight + 1; k++ )
+		for (k = xLeft; k < xRight + 1; k++ )
 		lcd_putPixel( k, i, bw );
 	}
 }
@@ -287,7 +291,8 @@ void lcd_drawRect( uint8_t xLeft, uint8_t yLow, uint8_t xRight, uint8_t yHigh, u
 	lcd_drawLine( xLeft, yHigh, xRight, yHigh, bw );
 
 	// Sinelines
-	for ( int i = yLow + 1; i < yHigh; i++ )
+	int i = yLow;
+	for (i = yLow + 1; i < yHigh; i++ )
 	{
 		lcd_putPixel( xLeft, i, bw );
 		lcd_putPixel( xRight, i, bw );
@@ -509,8 +514,10 @@ void Joystick_Tick(){
 
 unsigned char timeLeft = 0x00;
 unsigned char g = 0x00;
+unsigned char h = 0x00;
 unsigned char score = 0x00;
 unsigned char scoreTime = 0x00;
+unsigned char scoreTemp = 0x00;
 unsigned char a2 = 0x00;
 unsigned char yHigh = 1;
 unsigned char yLow = 6;
@@ -524,6 +531,7 @@ Menu() {
 	switch(Menu_State) {
 		case INIT:
 			if (currentJoystickFramePtr->click == 1) {
+				LCD_DisplayString(1, "GAME IN PROGRESSSCORE 10  to win ");
 				Menu_State = GAME;
 				break;
 			} else {
@@ -558,15 +566,17 @@ Menu() {
 			timeLeft = 0x00;
 			score = 0x00;
 			scoreTime = 0x00;
+			scoreTemp = 0x00;
 			a2 = 0;
 			g = 0;
+			h = 0;
 			yHigh = yHigha2 = yHigha3 = yHigha4 = yHigha5 = yHigha6 = yHigha7 = yHigha8 = yHigha9 = yHigha10 = yHigha11 = yHigha12 = yHigha13 = yHigha14 = yHigha15 = yHigha16 = yHigha17 = 1;
 			yLow = yLowa2 = yLowa3 = yLowa4 = yLowa5 = yLowa6 = yLowa7 = yLowa8 = yLowa9 = yLowa10 = yLowa11 = yLowa12 = yLowa13 = yLowa14 = yLowa15 = yLowa16 = yLowa17 = 6;
 			LCD_DisplayString(1, "Press button to START");
 			break;
 		case GAME:
-			LCD_DisplayString(1, "GAME IN PROGRESS");
-			break;
+				//LCD_DisplayString(1, "GAME IN PROGRESSSCORE 10  to win ");
+				break;
 		case SCORE:
 			lcd_clearBuffer();
 			lcd_drawLine( 20, 5, 35, 5, BLACK );
@@ -587,12 +597,27 @@ Menu() {
 				break;
 			}
 			if(scoreTime == 20) {
+				scoreTemp = score;
 				scoremsg[1] = (score % 10) + '0';
 				score /= 10;
 				scoremsg[0] = (score % 10) + '0';
 				LCD_DisplayString(1, &scoremsg);
 				++scoreTime;
 				break;
+			}
+			if((scoreTime > 20) && (scoreTime < 40)) {
+				++scoreTime;
+			}
+			if(scoreTime == 40) {
+				if(scoreTemp > 9) {
+					LCD_DisplayString(1, "CONGRATS YOU AREA WINNER!");
+					++scoreTime;
+					break;
+				} else {
+					LCD_DisplayString(1, "YOU LOSE. PRESS BUTTON TO RETRY.");
+					++scoreTime;
+					break;
+				}
 			}
 			break;
 	}
@@ -794,7 +819,7 @@ int main(void)
 	nextJoystickFramePtr = (Joystick_Frame*) malloc(sizeof(Joystick_Frame));
 	TimerSet(100);
 	TimerOn();
-	
+
     while (1) {
 		Menu();
 		Joystick_Tick();
