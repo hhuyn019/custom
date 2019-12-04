@@ -506,7 +506,7 @@ void testDisplayJoystickADC(){ // Code for joystick functionality given by fello
 	tmpADC /= 10;
 	LCD_msg[1] = (tmpADC % 10) + '0';
 	tmpADC /= 10;
-	LCD_msg[0] = (tmpADC % 10)+ '0';
+	LCD_msg[0] = (tmpADC % 10) + '0';
 	LCD_msg[4] = ' ';
 	
 	//display Y
@@ -554,12 +554,34 @@ void Joystick_Tick1(){
 	nextJoystickFramePtr1 = temp1;
 }
 testtt() {
-	if(currentJoystickFramePtr1->raw_x < 1000) {
-		LCD_DisplayString(1, "RIGHT");
-	} else if ((currentJoystickFramePtr1->raw_x < 1000) && (currentJoystickFramePtr1->raw_y < 1000)){
-	LCD_DisplayString(1, "UP-RIGHT");
-	} else if ((currentJoystickFramePtr1->raw_x < 1000) && (currentJoystickFramePtr1->raw_y < 1000)){
-	LCD_DisplayString(1, "UP-RIGHT");
+	unsigned short tmpADC = currentJoystickFramePtr->raw_x;
+	LCD_msg[3] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[2] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[1] = (tmpADC % 10) + '0';
+	tmpADC /= 10;
+	LCD_msg[0] = (tmpADC % 10) + '0';
+	LCD_msg[4] = ' ';
+	
+	if(LCD_msg[0] == '1') {
+		//lcd_clearBuffer();
+		lcd_fillRect(1,41,28,47, BLACK);
+		lcd_fillRect(57,41,83,47, WHITE);
+		lcd_fillRect(29,41,56,47, WHITE);
+		lcd_update();
+	} else if (LCD_msg[1] == '0') {
+		//lcd_clearBuffer();
+		lcd_fillRect(57,41,83,47, BLACK);
+		lcd_fillRect(1,41,28,47, WHITE);
+		lcd_fillRect(29,41,56,47, WHITE);
+		lcd_update();
+	} else {
+		//lcd_clearBuffer();
+		lcd_fillRect(29,41,56,47, BLACK);
+		lcd_fillRect(1,41,28,47, WHITE);
+		lcd_fillRect(57,41,83,47, WHITE);
+		lcd_update();
 	}
 }
 
@@ -576,6 +598,278 @@ uint8_t testImg[] = { 19, 42,
 	0xe0, 0x01, 0xf0, 0x00, 0x00, 0x00, 0x78, 0x3f, 0xc0, 0x00,
 	0x00, 0x00, 0x3f, 0xff, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xe0,
 0x00, 0x00, 0x00, 0x00, };
+unsigned char timeLeft = 0x00;
+unsigned char g = 0x00;
+unsigned char score = 0x00;
+unsigned char scoreTime = 0x00;
+unsigned char a2 = 0x00;
+unsigned char yHigh = 1;
+unsigned char yLow = 6;
+unsigned char yHigha2 = 1, yHigha3 = 1, yHigha4 = 1, yHigha5 = 1, yHigha6 = 1, yHigha7 = 1, yHigha8 = 1, yHigha9 = 1, yHigha10 = 1, yHigha11 = 1, yHigha12 = 1, yHigha13 = 1, yHigha14 = 1, yHigha15 = 1, yHigha16  = 1, yHigha17 = 1;
+unsigned char yLowa2 = 6, yLowa3 = 6, yLowa4 = 6, yLowa5 = 6, yLowa6 = 6, yLowa7 = 6, yLowa8 = 6, yLowa9 = 6, yLowa10 = 6, yLowa11 = 6, yLowa12 = 6, yLowa13 = 6, yLowa14 = 6, yLowa15 = 6, yLowa16 = 6, yLowa17 = 6;
+char joyVals[10];
+char scoremsg[3];
+enum Menu_States {INIT, GAME, SCORE} Menu_State;
+
+Menu() {
+	switch(Menu_State) {
+		case INIT:
+			if (currentJoystickFramePtr->click == 1) {
+				Menu_State = GAME;
+				break;
+			} else {
+				Menu_State = INIT;
+				break;
+			}
+		case GAME:
+		
+			if(currentJoystickFramePtr->click == 1) {
+				Menu_State = INIT;
+				break;
+			}
+			++timeLeft;
+			if(timeLeft == 89) { // 9 sec
+				Menu_State = SCORE;
+				break;
+			} else {
+				Menu_State = GAME;
+				break;
+			}
+		case SCORE:
+			if(currentJoystickFramePtr->click == 1) {
+				Menu_State = INIT;
+				break;
+			}
+			Menu_State = SCORE;
+			break;
+	}
+	
+	switch(Menu_State) {
+		case INIT:
+			timeLeft = 0x00;
+			score = 0x00;
+			scoreTime = 0x00;
+			a2 = 0;
+			g = 0;
+			yHigh = yHigha2 = yHigha3 = yHigha4 = yHigha5 = yHigha6 = yHigha7 = yHigha8 = yHigha9 = yHigha10 = yHigha11 = yHigha12 = yHigha13 = yHigha14 = yHigha15 = yHigha16 = yHigha17 = 1;
+			yLow = yLowa2 = yLowa3 = yLowa4 = yLowa5 = yLowa6 = yLowa7 = yLowa8 = yLowa9 = yLowa10 = yLowa11 = yLowa12 = yLowa13 = yLowa14 = yLowa15 = yLowa16 = yLowa17 = 6;
+			LCD_DisplayString(1, "Press button to START");
+			break;
+		case GAME:
+			LCD_DisplayString(1, "GAME IN PROGRESS");
+			break;
+		case SCORE:
+			lcd_clearBuffer();
+			lcd_drawLine( 20, 5, 35, 5, BLACK );
+			lcd_drawLine( 20, 5, 20, 42, BLACK );
+			lcd_drawLine( 20, 42, 40, 42, BLACK );
+			lcd_drawLine( 40, 25, 40, 42, BLACK );
+			lcd_drawLine( 30, 25, 40, 25, BLACK );
+			
+			lcd_drawLine( 43, 5, 58, 5, BLACK );
+			lcd_drawLine( 43, 5, 43, 42, BLACK );
+			lcd_drawLine( 43, 42, 63, 42, BLACK );
+			lcd_drawLine( 63, 25, 63, 42, BLACK );
+			lcd_drawLine( 53, 25, 63, 25, BLACK );
+			lcd_update();
+			if(scoreTime < 20) {
+				LCD_DisplayString(1, "Final Score: ");
+				++scoreTime;
+				break;
+			}
+			if(scoreTime == 20) {
+				scoremsg[1] = (score % 10) + '0';
+				score /= 10;
+				scoremsg[0] = (score % 10) + '0';
+				LCD_DisplayString(1, &scoremsg);
+				++scoreTime;
+				break;
+			}
+			break;
+	}
+}
+
+unsigned char tempCount = 0;
+unsigned char tempi = 0;
+
+
+Apples() {
+	if(Menu_State == GAME) {
+		unsigned short tmpADC = currentJoystickFramePtr->raw_x;
+		LCD_msg[3] = (tmpADC % 10) + '0';
+		tmpADC /= 10;
+		LCD_msg[2] = (tmpADC % 10) + '0';
+		tmpADC /= 10;
+		LCD_msg[1] = (tmpADC % 10) + '0';
+		tmpADC /= 10;
+		LCD_msg[0] = (tmpADC % 10) + '0';
+		LCD_msg[4] = ' ';
+		
+		if(LCD_msg[0] == '1') {
+			lcd_clearBuffer();
+			lcd_fillRect(1,41,28,47, BLACK);
+			lcd_fillRect(57,41,83,47, WHITE);
+			lcd_fillRect(29,41,56,47, WHITE);
+			lcd_update();
+			} else if (LCD_msg[1] == '0') {
+			lcd_clearBuffer();
+			lcd_fillRect(57,41,83,47, BLACK);
+			lcd_fillRect(1,41,28,47, WHITE);
+			lcd_fillRect(29,41,56,47, WHITE);
+			lcd_update();
+			} else {
+			lcd_clearBuffer();
+			lcd_fillRect(29,41,56,47, BLACK);
+			lcd_fillRect(1,41,28,47, WHITE);
+			lcd_fillRect(57,41,83,47, WHITE);
+			lcd_update();
+		}
+	a2+=3;
+	//lcd_clearBuffer();
+	lcd_drawRect(1, yHigh, 6, yLow, BLACK);
+	lcd_update();
+	yHigh = yHigh + 3;
+	yLow = yLow + 3;
+	if((a2 > 20) && (a2 < 70)) {
+		//lcd_clearBuffer();
+		lcd_drawRect(19, yHigha2, 24, yLowa2, BLACK);
+		lcd_update();
+		yHigha2 = yHigha2 + 3;
+		yLowa2 +=3;
+	}
+	if((a2 > 40) && (a2 < 90)) {
+		lcd_drawRect(68, yHigha3, 73, yLowa3, BLACK);
+		lcd_update();
+		yHigha3+=3;
+		yLowa3+=3;
+	}
+	if((a2 > 60) && (a2 < 110)) {
+		lcd_drawRect(38, yHigha4, 43, yLowa4, BLACK);
+		lcd_update();
+		yHigha4+=3;
+		yLowa4+=3;
+	}
+	if((a2 > 80) && (a2 < 130)) {
+		lcd_drawRect(62, yHigha5, 67, yLowa5, BLACK);
+		lcd_update();
+		yHigha5+=3;
+		yLowa5+=3;
+	}
+	if((a2 > 100) && (a2 < 150)) {
+		lcd_drawRect(16, yHigha6, 21, yLowa6, BLACK);
+		lcd_update();
+		yHigha6+=3;
+		yLowa6+=3;
+	}
+	if((a2 > 120) && (a2 < 170)){
+		lcd_drawRect(77, yHigha7, 82, yLowa7, BLACK);
+		lcd_update();
+		yHigha7+=3;
+		yLowa7+=3;
+	}
+	if((a2 > 140) && (a2 < 190)){
+		lcd_drawRect(44, yHigha8, 49, yLowa8, BLACK);
+		lcd_update();
+		yHigha8+=3;
+		yLowa8+=3;
+	}
+	if((a2 > 160) && (a2 < 210)) {
+		lcd_drawRect(8, yHigha9, 13, yLowa9, BLACK);
+		lcd_update();
+		yHigha9+=3;
+		yLowa9+=3;
+	}
+	if((a2 > 180) && (a2 < 230)){
+		lcd_drawRect(71, yHigha10, 76, yLowa10, BLACK);
+		lcd_update();
+		yHigha10+=3;
+		yLowa10+=3;
+	}
+	if((a2 > 200) && (a2 < 250)){
+		lcd_drawRect(42, yHigha11, 47, yLowa11, BLACK);
+		lcd_update();
+		yHigha11+=3;
+		yLowa11+=3;
+	}
+	if((a2 > 220) && (a2 < 270)){
+		lcd_drawRect(17, yHigha12, 22, yLowa12, BLACK);
+		lcd_update();
+		yHigha12+=3;
+		yLowa12+=3;
+	}
+	/*if((a2 > 240) && (a2 < 290)){
+		lcd_drawRect(5, yHigha13, 10, yLowa13, BLACK);
+		lcd_update();
+		yHigha13+=3;
+		yLowa13+=3;
+	}*/
+	if((a2 > 260) && (a2 < 310)){
+		lcd_drawRect(33, yHigha14, 38, yLowa14, BLACK);
+		lcd_update();
+		yHigha14+=3;
+		yLowa14+=3;
+	}
+	if((a2 > 280) && (a2 < 330)){
+		lcd_drawRect(71, yHigha15, 76, yLowa15, BLACK);
+		lcd_update();
+		yHigha15+=3;
+		yLowa15+=3;
+	}
+	if((a2 > 300) && (a2 < 350)){
+		lcd_drawRect(26, yHigha16, 31, yLowa16, BLACK);
+		lcd_update();
+		yHigha16+=3;
+		yLowa16+=3;
+	}
+	if((a2 > 320) && (a2 < 370)){
+		lcd_drawRect(56, yHigha17, 61, yLowa17, BLACK);
+		lcd_update();
+		yHigha17+=3;
+		yLowa17+=3;
+	}
+	}
+}
+
+countScore() {
+	++g;
+	if((g == 15) && LCD_msg[0] == '1') { //L
+		score++;
+	}
+	if((g == 21) && LCD_msg[0] == '1') { //L
+		score++;
+	}
+	if((g == 28) && LCD_msg[1] == '0' && LCD_msg[0] == '0') { //R
+		score++;
+	}
+	if((g == 35) && LCD_msg[1] == '5') { //M
+		score++;
+	}
+	if((g == 41) && LCD_msg[1] == '0' && LCD_msg[0] == '0') { //R
+		score++;
+	}
+	if((g == 48) && LCD_msg[0] == '1') { //L
+		score++;
+	}
+	if((g == 55) && LCD_msg[1] == '0' && LCD_msg[0] == '0') { //R
+		score++;
+	}
+	if((g == 61) && LCD_msg[1] == '5') { //M
+		score++;
+	}
+	if((g == 68) && LCD_msg[0] == '1') { //L
+		score++;
+	}
+	if((g == 75) && LCD_msg[1] == '0' && LCD_msg[0] == '0') { //R
+		score++;
+	}
+	if((g == 81) && LCD_msg[1] == '5') { //M
+		score++;
+	}
+	if((g == 88) && LCD_msg[0] == '1') { // L
+		score++;
+	}
+	
+}
 
 int main(void)
 {
@@ -591,16 +885,22 @@ int main(void)
 	nextJoystickFramePtr = (Joystick_Frame*) malloc(sizeof(Joystick_Frame));
 	TimerSet(100);
 	TimerOn();
-	
-	lcd_clearBuffer();
-	lcd_drawImage( testImg, 0, 0 );
-	lcd_drawLine( 5, 30, 80, 30, BLACK );
-	lcd_drawRect( 50, 0, 80, 40, BLACK );
-	lcd_update();
+	//lcd_clearBuffer();
+	//lcd_drawImage( testImg, 0, 0 );
+	//lcd_drawRect( 50, 0, 80, 40, BLACK );
+	//lcd_drawRect(1, yHigh, 6, yLow, BLACK);
+	//lcd_update();
 	
     while (1) {
+		//lcd_clearBuffer();
+		//lcd_drawRect(38,41,46,47, BLACK);
+		//lcd_update();
+		Menu();
 		Joystick_Tick();
-	    testDisplayJoystickADC();
+	    //testDisplayJoystickADC();
+		//testtt();
+		Apples();
+		countScore();
 		while (!TimerFlag);
 		TimerFlag = 0;
 	}
